@@ -122,7 +122,7 @@ if __name__ == "__main__":
     print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
 
     for i, url in enumerate(urls):
-        # ------- LUCA'S CODE -------
+        # ------- LUCA'S CODE for testing -------
         if i >= 2:
             continue
         # ------- ----------- -------
