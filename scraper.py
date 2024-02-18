@@ -3,6 +3,8 @@ import requests
 import json
 import os
 import re
+from api import push_vouchers
+from url import populate_url
 
 def fetch_relevant_voucher_jsons(base_url):
     """
@@ -17,24 +19,25 @@ def fetch_relevant_voucher_jsons(base_url):
     voucher_jsons = []
     page_content = requests.get(base_url).content.decode("utf-8")
     remaining_content = page_content.split('"expired_codes":')[-1]
-    
-    if ',"expired_deals":' in remaining_content: 
+
+    if ',"expired_deals":' in remaining_content:
         first_json, remaining_content = remaining_content.split(',"expired_deals":', 1)
         voucher_jsons.append(remove_json_tail(first_json))
-    
-    if ']},{"widget_api_mapping"' in remaining_content: 
+
+    if ']},{"widget_api_mapping"' in remaining_content:
         second_json, remaining_content = remaining_content.split(']},{"widget_api_mapping"', 1)
         voucher_jsons.append(second_json + "]")
-    
-    if ',"vouchers":' in remaining_content: 
+
+    if ',"vouchers":' in remaining_content:
         _, vouchers_content = remaining_content.split(',"vouchers":', 1)
         third_json, remaining_content = vouchers_content.split(',"expiredVouchers":', 1)
         voucher_jsons.append(remove_json_tail(third_json))
-    
+
     fourth_json = remaining_content.split('"similarVouchers":')[0]
     voucher_jsons.append(remove_json_tail(fourth_json))
 
     return voucher_jsons
+
 
 def remove_json_tail(json_string):
     """
@@ -48,6 +51,7 @@ def remove_json_tail(json_string):
     """
     last_bracket_index = json_string.rfind(']')
     return json_string[:last_bracket_index + 1] if last_bracket_index != -1 else json_string
+
 
 def parse_vouchers(voucher_string):
     """
@@ -67,6 +71,7 @@ def parse_vouchers(voucher_string):
         'expiration_date': voucher.get('end_time'),
     } for voucher in vouchers]
 
+
 def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs"):
     """
     Saves voucher data and the source URL to a specified JSON file.
@@ -79,14 +84,15 @@ def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs"):
     """
     if not os.path.exists(directory):
         os.makedirs(directory)
-    
+
     file_path = os.path.join(directory, file_name)
     data = {"URL": url, "vouchers": vouchers}
-    
+
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-    
+
     print(f"Saved {len(vouchers)} vouchers to {file_path}")
+
 
 def get_all_urls(base_url):
     """
@@ -101,13 +107,14 @@ def get_all_urls(base_url):
     html_content = requests.get(base_url).content.decode("utf-8")
     pattern = ',"url":"/[^{]*?-gutschein.'
     matches = re.findall(pattern, html_content)
-    
+
     urls = [
         "https://gutscheine.blick.ch/" + match.group(1) + "-gutschein" + ('e' if match.group(0)[-1] == 'e' else '')
         for match in (re.search(r'/([^/]*)-gutschein.', m) for m in matches) if match
     ]
-    
+
     return urls
+
 
 if __name__ == "__main__":
     blick_overview_url = "https://gutscheine.blick.ch/alle-shops"
@@ -115,18 +122,36 @@ if __name__ == "__main__":
     print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
 
     for i, url in enumerate(urls):
+        # ------- LUCA'S CODE -------
+        if i >= 2:
+            continue
+        # ------- ----------- -------
         filename = "blick_" + url.split("/")[-1] + ".json"
-        
+
         file_path = os.path.join("Voucher_JSONs", filename)
+
+        '''
         if os.path.exists(file_path):
             file_age = time.time() - os.path.getmtime(file_path)
             if file_age < 3600:
                 print(f"Skipping {filename}, recently updated.")
                 continue
-        
+        '''
         try:
             voucher_jsons = fetch_relevant_voucher_jsons(url)
+
             all_vouchers = [voucher for json_str in voucher_jsons for voucher in parse_vouchers(json_str)]
+
+            # push to firebase
+            name = url.split("/")[-1]
+            shop_url = populate_url(name)  # url where this voucher can be redeemed
+            stripped_vouchers = [  # all_vouchers but without the creation_date and expiration_date
+                {key: value for key, value in voucher.items() if key not in ["creation_date", "expiration_date"]} for
+                voucher in all_vouchers]
+
+            push_vouchers(name, shop_url, stripped_vouchers)
+            # ----------
+
             save_vouchers_to_json(all_vouchers, url, filename)
         except Exception as e:
             print(f"Error processing {url}: {e}")
