@@ -4,7 +4,6 @@ import json
 import os
 import re
 from api import push_vouchers
-from url import populate_url
 
 def fetch_relevant_voucher_jsons(base_url):
     """
@@ -144,12 +143,11 @@ if __name__ == "__main__":
 
             # push to firebase
             name = url.split("/")[-1]
-            shop_url = populate_url(name)  # url where this voucher can be redeemed
             stripped_vouchers = [  # all_vouchers but without the creation_date and expiration_date
                 {key: value for key, value in voucher.items() if key not in ["creation_date", "expiration_date"]} for
                 voucher in all_vouchers]
 
-            push_vouchers(name, shop_url, stripped_vouchers)
+            push_vouchers(name, stripped_vouchers)
             # ----------
 
             save_vouchers_to_json(all_vouchers, url, filename)
