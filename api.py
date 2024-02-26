@@ -1,5 +1,8 @@
 from firebase import db
 
+BLACKLIST = ["direkt abgezogen", "wird abgezogen", "per Direktabzug", "kein Code notwendig", "nach Anmeldung", "wird zugeschickt",
+             "wird gutgeschrieben", "wird angezeigt", "im Newsletter", "wird zugeteilt", "für Firmen", "Ermässigung erhalten"]
+
 
 # Function to push vouchers data to Firebase
 # Parameters:
@@ -29,6 +32,6 @@ def push_vouchers(name, vouchers):
 def filter_vouchers(vouchers):
     # Use list comprehension to filter vouchers based on conditions
     filtered_vouchers = [voucher for voucher in vouchers if voucher["code"] is not None
-                         and voucher["code"] not in ["direkt abgezogen", "per Direktabzug", "kein Code notwendig",
-                                                     "gen", "dig"]]
+                         and voucher["code"] not in BLACKLIST
+                         and len(voucher["code"]) > 3]
     return filtered_vouchers

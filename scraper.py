@@ -121,10 +121,7 @@ if __name__ == "__main__":
     print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
 
     for i, url in enumerate(urls):
-        # ------- LUCA'S CODE for testing -------
-        if i >= 2:
-            continue
-        # ------- ----------- -------
+
         filename = "blick_" + url.split("/")[-1] + ".json"
 
         file_path = os.path.join("Voucher_JSONs", filename)
@@ -147,9 +144,9 @@ if __name__ == "__main__":
                 {key: value for key, value in voucher.items() if key not in ["creation_date", "expiration_date"]} for
                 voucher in all_vouchers]
 
-            push_vouchers(name, stripped_vouchers)
             # ----------
 
             save_vouchers_to_json(all_vouchers, url, filename)
+            push_vouchers(name, stripped_vouchers)
         except Exception as e:
             print(f"Error processing {url}: {e}")
