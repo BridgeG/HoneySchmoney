@@ -35,3 +35,6 @@ def filter_vouchers(vouchers):
                          and voucher["code"] not in BLACKLIST
                          and len(voucher["code"]) > 3]
     return filtered_vouchers
+
+
+# fuck git
