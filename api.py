@@ -11,7 +11,7 @@ BLACKLIST = ["direkt abgezogen", "wird abgezogen", "per Direktabzug", "kein Code
 #   - name: string representing the name
 #   - vouchers: array of dictionaries containing voucher information
 #       Each dictionary should have "code" and "description" keys
-def push_vouchers(name, vouchers):
+def push_vouchers(name, vouchers, verbose=False):
     # Prepare data to be pushed to Firebase
     data = {"name": name, "vouchers": filter_vouchers(vouchers)}
 
@@ -22,7 +22,8 @@ def push_vouchers(name, vouchers):
     doc_ref.set(data)
 
     # Print a message indicating successful push to Firebase
-    print(f"pushed {name} vouchers to Firebase")
+    if verbose:
+        print(f"pushed {name} vouchers to Firebase")
 
 
 # Function to filter vouchers based on certain conditions
@@ -38,7 +39,7 @@ def filter_vouchers(vouchers):
                          and len(voucher["code"]) > 3]
     return filtered_vouchers
 
-def push_latest_date():
+def push_latest_date(verbose=False):
     my_date = str(date.today())
     my_time = str(datetime.now())
 
@@ -47,6 +48,7 @@ def push_latest_date():
     entry = {"date": my_date, "time": my_time}
 
     doc_ref.set(entry)
-    print("date pushed")
+    if verbose:
+        print("date pushed")
 
 # fuck git

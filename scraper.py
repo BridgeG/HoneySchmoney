@@ -1,5 +1,6 @@
 import time
 import requests
+from datetime import datetime
 import json
 import os
 import re
@@ -72,7 +73,7 @@ def parse_vouchers(voucher_string):
     } for voucher in vouchers]
 
 
-def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs"):
+def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs", verbose=False):
     """
     Saves voucher data and the source URL to a specified JSON file.
     
@@ -90,8 +91,8 @@ def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs"):
 
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-
-    print(f"Saved {len(vouchers)} vouchers to {file_path}")
+    if verbose:
+        print(f"Saved {len(vouchers)} vouchers to {file_path}")
 
 
 def get_all_urls(base_url):
@@ -115,10 +116,11 @@ def get_all_urls(base_url):
 
     return urls
 
-if __name__ == "__main__":
+def main_execution(max_voucher_age, verbose=False): 
     blick_overview_url = "https://gutscheine.blick.ch/alle-shops"
     urls = get_all_urls(blick_overview_url)
-    print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
+    if verbose: 
+        print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
 
     for i, url in enumerate(urls):
 
@@ -126,13 +128,15 @@ if __name__ == "__main__":
 
         file_path = os.path.join("Voucher_JSONs", filename)
 
-        '''
+        
         if os.path.exists(file_path):
             file_age = time.time() - os.path.getmtime(file_path)
-            if file_age < 3600:
-                print(f"Skipping {filename}, recently updated.")
+            if file_age < max_voucher_age:
+                if verbose:
+                    print(f"Skipping {filename}, recently updated.")
                 continue
-        '''
+        
+
         try:
             voucher_jsons = fetch_relevant_voucher_jsons(url)
 
@@ -146,8 +150,31 @@ if __name__ == "__main__":
 
             # ----------
 
-            save_vouchers_to_json(all_vouchers, url, filename)
-            push_vouchers(name, stripped_vouchers)
+            save_vouchers_to_json(all_vouchers, url, filename, verbose=verbose)
+            push_vouchers(name, stripped_vouchers, verbose=verbose)
         except Exception as e:
             print(f"Error processing {url}: {e}")
-push_latest_date()
+    push_latest_date(verbose=verbose)
+
+
+if __name__ == "__main__":
+    INFINITE_EXECUTION = True  
+    VOUCHER_REFRESH_RATE = 86400/2  # Time between searching the same website for vouchers 
+    SEARCH_RATE = 3600  # Time between checking the ages of the vouchers. Especially relevant if a website or the internet is not reliable
+
+    # First iteration always searches new vouchers 
+    last_check_time = time.time() 
+    main_execution(max_voucher_age=0, verbose=True)
+    
+    while INFINITE_EXECUTION: 
+        time.sleep(max(SEARCH_RATE - (time.time()-last_check_time), 60))
+        last_check_time = time.time() 
+       
+        try: 
+            main_execution(VOUCHER_REFRESH_RATE, verbose=False)
+            print(f"Updated vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+        except Exception as e: 
+            print(f"Failed to update vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}\n{e}")
+ 
+
+
