@@ -4,6 +4,7 @@ import json
 import os
 import re
 from api import push_vouchers
+from api import push_latest_date
 
 def fetch_relevant_voucher_jsons(base_url):
     """
@@ -114,7 +115,6 @@ def get_all_urls(base_url):
 
     return urls
 
-
 if __name__ == "__main__":
     blick_overview_url = "https://gutscheine.blick.ch/alle-shops"
     urls = get_all_urls(blick_overview_url)
@@ -150,3 +150,4 @@ if __name__ == "__main__":
             push_vouchers(name, stripped_vouchers)
         except Exception as e:
             print(f"Error processing {url}: {e}")
+push_latest_date()

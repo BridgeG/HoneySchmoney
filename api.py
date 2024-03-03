@@ -1,4 +1,6 @@
 from firebase import db
+from datetime import date
+from datetime import datetime
 
 BLACKLIST = ["direkt abgezogen", "wird abgezogen", "per Direktabzug", "kein Code notwendig", "nach Anmeldung", "wird zugeschickt",
              "wird gutgeschrieben", "wird angezeigt", "im Newsletter", "wird zugeteilt", "für Firmen", "Ermässigung erhalten"]
@@ -36,5 +38,15 @@ def filter_vouchers(vouchers):
                          and len(voucher["code"]) > 3]
     return filtered_vouchers
 
+def push_latest_date():
+    my_date = str(date.today())
+    my_time = str(datetime.now())
+
+    doc_ref = db.collection("log").document(my_date)
+
+    entry = {"date": my_date, "time": my_time}
+
+    doc_ref.set(entry)
+    print("date pushed")
 
 # fuck git
