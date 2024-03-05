@@ -1,13 +1,14 @@
+import random
 import time
 import requests
-from datetime import datetime
+import datetime
 import json
 import os
 import re
 from api import push_vouchers
 from api import push_latest_date
 
-def fetch_relevant_voucher_jsons(base_url):
+def fetch_relevant_voucher_jsons(base_url, session):
     """
     Fetches relevant voucher JSON data from the specified base URL.
     
@@ -18,7 +19,7 @@ def fetch_relevant_voucher_jsons(base_url):
     - list: A list of JSON strings containing relevant voucher information.
     """
     voucher_jsons = []
-    page_content = requests.get(base_url).content.decode("utf-8")
+    page_content = session.get(base_url).content.decode("utf-8")
     remaining_content = page_content.split('"expired_codes":')[-1]
 
     if ',"expired_deals":' in remaining_content:
@@ -95,7 +96,7 @@ def save_vouchers_to_json(vouchers, url, file_name, directory="Voucher_JSONs", v
         print(f"Saved {len(vouchers)} vouchers to {file_path}")
 
 
-def get_all_urls(base_url):
+def get_all_urls(base_url, session):
     """
     Extracts voucher URLs from the specified base URL's HTML content.
     
@@ -105,7 +106,7 @@ def get_all_urls(base_url):
     Returns:
     - list: A list of complete voucher URLs.
     """
-    html_content = requests.get(base_url).content.decode("utf-8")
+    html_content = session.get(base_url).content.decode("utf-8")
     pattern = ',"url":"/[^{]*?-gutschein.'
     matches = re.findall(pattern, html_content)
 
@@ -116,13 +117,14 @@ def get_all_urls(base_url):
 
     return urls
 
-def main_execution(max_voucher_age, verbose=False): 
+def voucher_collection(max_voucher_age, session, verbose=False): 
     blick_overview_url = "https://gutscheine.blick.ch/alle-shops"
-    urls = get_all_urls(blick_overview_url)
+    urls = get_all_urls(blick_overview_url, session)
     if verbose: 
         print(f"Found {len(urls)} websites with vouchers on {blick_overview_url}")
 
     for i, url in enumerate(urls):
+
 
         filename = "blick_" + url.split("/")[-1] + ".json"
 
@@ -136,9 +138,11 @@ def main_execution(max_voucher_age, verbose=False):
                     print(f"Skipping {filename}, recently updated.")
                 continue
         
+        if i>0: 
+            powernap()
 
         try:
-            voucher_jsons = fetch_relevant_voucher_jsons(url)
+            voucher_jsons = fetch_relevant_voucher_jsons(url, session)
 
             all_vouchers = [voucher for json_str in voucher_jsons for voucher in parse_vouchers(json_str)]
 
@@ -157,21 +161,44 @@ def main_execution(max_voucher_age, verbose=False):
     push_latest_date(verbose=verbose)
 
 
+def powernap(mean = 10, stddev = 5): 
+    time.sleep(max(3,(random.gauss(mean, stddev))))
+
+
 if __name__ == "__main__":
     INFINITE_EXECUTION = True  
-    VOUCHER_REFRESH_RATE = 86400/2  # Time between searching the same website for vouchers 
-    SEARCH_RATE = 3600  # Time between checking the ages of the vouchers. Especially relevant if a website or the internet is not reliable
+    VOUCHER_REFRESH_RATE = 86400/2  # Any voucher older than this will be replaced the next time vouchers are searched
+    SEARCH_TIME = 19  # Which hour of the day the search will occur on on average
+    SEARCH_TIME_DEVIATION = 600  # Standard deviation of starting time of the search
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+    }
 
-    # First iteration always searches new vouchers 
-    last_check_time = time.time() 
-    main_execution(max_voucher_age=0, verbose=True)
+    with requests.Session() as session:
+        session.headers.update(HEADERS)
+        # First iteration always searches new vouchers 
+        voucher_collection(max_voucher_age=0, session=session, verbose=True)
     
+
     while INFINITE_EXECUTION: 
-        time.sleep(max(SEARCH_RATE - (time.time()-last_check_time), 60))
-        last_check_time = time.time() 
+
+        # Calculate the time we sleep for
+        now = datetime.datetime.now()
+        next_target = now.replace(hour=SEARCH_TIME, minute=0, second=0, microsecond=0)
+        if now >= next_target:
+            # If it's past the target hour already, calculate the next occurrence for the following day
+            next_target += datetime.timedelta(days=1)
+        sleep_time = (next_target - now).total_seconds() + random.gauss(0, SEARCH_TIME_DEVIATION)
+        
+        print(f"Next time vouchers will be checked: {now + datetime.timedelta(seconds=sleep_time)}")
+        time.sleep(sleep_time)
        
         try: 
-            main_execution(VOUCHER_REFRESH_RATE, verbose=False)
+            with requests.Session() as session:
+                session.headers.update(HEADERS)
+                # First iteration always searches new vouchers
+                voucher_collection(VOUCHER_REFRESH_RATE, session=session, verbose=False)
             print(f"Updated vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
         except Exception as e: 
             print(f"Failed to update vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}\n{e}")
