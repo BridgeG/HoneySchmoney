@@ -199,9 +199,9 @@ if __name__ == "__main__":
                 session.headers.update(HEADERS)
                 # First iteration always searches new vouchers
                 voucher_collection(VOUCHER_REFRESH_RATE, session=session, verbose=False)
-            print(f"Updated vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+            print(f"Updated vouchers at {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
         except Exception as e: 
-            print(f"Failed to update vouchers at {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}\n{e}")
+            print(f"Failed to update vouchers at {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}\n{e}")
  
 
 
